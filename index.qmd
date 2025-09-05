@@ -1,0 +1,27 @@
+---
+title: "Geographic Data Service Tutorials"
+author: "Owen Goodwin"
+format:
+  html:
+    css: style.css
+    toc: true
+    toc-location: left
+    toc-float: true
+    theme: cosmo
+    highlight-style: github
+    reference-location: margin
+    citation-location: margin
+    margin-references: true
+bibliography: bibliography.bib
+---
+
+## Tutorials 
+
+Explore the following tutorials directly from this page:
+
+- [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python (Part 1)](tutorials/1_geodemographic_example_withcorr.ipynb)
+
+- [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python (Part 2)](tutorials/2_test.ipynb)
+
+
+

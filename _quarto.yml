@@ -1,0 +1,23 @@
+project:
+  type: website
+
+website:
+  title: "GeoDem_CartoWorkshop2025"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - about.qmd
+
+format:
+  html:
+    theme:
+      - cosmo
+      - brand
+    css: style.css
+    toc: true
+  
+  
+resources:
+  - maps/*
+

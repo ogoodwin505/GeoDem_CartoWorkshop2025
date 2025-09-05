@@ -1,0 +1,1827 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: \"Using Google's AlphaEarth Foundations Embeddings for Building Analysis: From Satellite Data to Predictive Urban Models\"\n",
+        "author: \"Alex Singleton\"\n",
+        "format:\n",
+        "  html:\n",
+        "    css: style.css\n",
+        "    toc: true\n",
+        "    toc-location: left\n",
+        "    toc-float: true\n",
+        "    theme: cosmo\n",
+        "    highlight-style: github\n",
+        "    reference-location: margin\n",
+        "    citation-location: margin\n",
+        "    margin-references: true\n",
+        "bibliography: bibliography.bib\n",
+        "---\n",
+        "\n",
+        "\n",
+        "## Learning Objectives\n",
+        "\n",
+        "This training pack demonstrates how to extract and analyse Google's AlphaEarth Foundations satellite embeddings at the building level, progressing from basic data extraction through advanced predictive modeling. The tutorial uses Liverpool City Region as a case study to illustrate a complete analytical workflow that combines satellite AI with urban datasets. Note: you will need a Google Account to access these data.\n",
+        "\n",
+        "All of the data used for this tutorial can be downloaded from the [Geographic Data Service](https://data.geods.ac.uk). These should be placed in a folder called `data` in your working directory.\n",
+        "\n",
+        "By the end of this training pack you will be able to:\n",
+        "\n",
+        "* **Data Access and Extraction:**\n",
+        "    * Describe what satellite embeddings are and how they function as numerical \"fingerprints\" of geographic locations\n",
+        "    * Understand the structure and capabilities of Google's AlphaEarth Foundations model and its 64-dimensional embeddings at 10-meter resolution\n",
+        "    * Setup, authenticate and initialise Google Earth Engine API from Python\n",
+        "    * Access Google's AlphaEarth satellite embedding collection for the time periods 2017-2024\n",
+        "    * Extract pixel-level embeddings for large geographic regions and specific building locations\n",
+        "\n",
+        "* **Clustering and Pattern Recognition:**\n",
+        "    * Apply clustergram analysis to determine optimal cluster frequency\n",
+        "    * Perform k-means clustering on satellite embedding data to identify building typologies\n",
+        "    * Interpret cluster patterns and validate results using external datasets\n",
+        "\n",
+        "* **Advanced Analytical Techniques:**\n",
+        "    * Use UMAP (Uniform Manifold Approximation and Projection) to visualise high-dimensional embeddings in 2D\n",
+        "    * Calculate cosine similarity to identify buildings with similar characteristics\n",
+        "    * Integrate satellite embeddings with administrative datasets (Energy Performance Certificates)\n",
+        "    * Create propensity indices to characterise cluster distributions across building attributes\n",
+        "\n",
+        "* **Predictive Modeling and Evaluation:**\n",
+        "    * Build a Random Forest model to predict building characteristics using satellite embeddings\n",
+        "    * Evaluate model performance using confusion matrices, classification reports, and feature importance analysis\n",
+        "    * Understand the limitations and appropriate applications of embedding-based prediction\n",
+        "\n",
+        "* **Visualisation and Communication:**\n",
+        "    * Export results to various formats (GeoPackage, Parquet) for use in GIS software\n",
+        "    * Generate publication-ready plots and statistical summaries\n",
+        "\n",
+        "## Conceptual Understanding\n",
+        "AI-powered satellite analysis represents a fundamental shift from traditional remote sensing approaches. Unlike conventional methods that analyse individual satellite images in isolation, systems like AlphaEarth Foundations create unified digital representations by integrating multiple data sources into a number of embeddings. These embeddings aim to capture complex spatial and temporal patterns, with multiple applications of urban environments.\n",
+        "\n",
+        "## What are AlphaEarth Embeddings?\n",
+        "AlphaEarth Foundations [@brown2025alphaearthfoundationsembeddingfield] is an artificial intelligence model developed by Google DeepMind that functions as a comprehensive Earth observation system. Rather than requiring users to process raw satellite imagery, the model provides pre-computed embeddings[^1] that distil complex environmental information into 64 numerical values for every 10×10 meter pixel across Earth's terrestrial and coastal zones.\n",
+        "\n",
+        "[^1]: Satellite embeddings are AI-generated feature representations of satellite imagery. Think of them as numerical \"fingerprints\" that capture the visual characteristics of a location - things like vegetation patterns, building density, water presence, and land use. Google provides pre-computed embeddings for the entire Earth, saving you from processing raw satellite images yourself.\n",
+        "\n",
+        "## Setup\n",
+        "\n",
+        "There are a number of prerequisites and libraries required for this tutorial.\n",
+        "\n",
+        "* **earthengine-api** is the official client library for Google Earth Engine. It allows you to access, process, and analyse geographic datasets hosted on Earth Engine directly from Python code.\n",
+        "* **pandas** is used for data manipulation and analysis and provides data structures like DataFrame.\n",
+        "* **geopandas** makes working with geographic data in pandas easier. It extends pandas DataFrames to support geometry columns (points, lines, polygons), enabling spatial operations, reading/writing GIS file formats, and easy mapping. \n",
+        "* **pyarrow** provides columnar in-memory data platform that enables fast reading and writing of various data formats (especially Parquet files) between different systems, and accelerates analytic operations of large datasets.\n",
+        "* **scikit-learn** is a machine learning library for data mining and analysis.\n",
+        "* **clustergram** helps visualise the most effective partitioning of data using clusters analysis (k means).\n",
+        "* **umap-learn** - is dimensionality reduction technique that creates visualisations of high-dimensional data.\n",
+        "* **seaborn** - a data visualisation library.\n",
+        "* **plotly** - an interactive plotting library.\n",
+        "* **matplotlib** - a fundamental plotting library.\n",
+        "* **numpy** - used for numerical operations and mathematical calculations.\n",
+        "* **requests** - downloading images from Google Earth Engine URLs and other web requests.\n",
+        "* **PIL (Python Imaging Library)** - used for image processing and display.\n",
+        "* **duckdb** - querying multiple files as if they were a single database.\n",
+        "* **keplergl** - creates the interactive maps."
+      ],
+      "id": "46419e0a"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "#| output: false\n",
+        "!pip install earthengine-api pyarrow scikit-learn pandas geopandas clustergram keplergl umap-learn seaborn shap # install packages"
+      ],
+      "id": "0e3c5020",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "#| output: false\n",
+        "import ee # Imports the Earth Engine API functionality\n",
+        "import pandas as pd # Import the pandas functionality\n",
+        "import geopandas as gpd # Import the geopandas functionality\n",
+        "from sklearn.cluster import KMeans # Import KMeans\n",
+        "import matplotlib.pyplot as plt # Import for plotting\n",
+        "from clustergram import Clustergram # Import for visualising cluster structure\n",
+        "import numpy as np # Import for numerical operations\n",
+        "from IPython.display import Image, display # Import image and display utilities\n",
+        "import duckdb # Enables duckdb functionality\n",
+        "import plotly.express as px # Import for interactive plotting and visualisation\n",
+        "import umap # Import for dimensionality reduction using UMAP\n",
+        "import seaborn as sns # Import for statistical data visualisation\n",
+        "import requests # Import for making HTTP requests\n",
+        "from PIL import Image as PILImage # Import PIL Image functionality\n",
+        "import io # Import for handling input/output operations\n",
+        "import os # Import for operating system interface\n",
+        "from sklearn.ensemble import RandomForestClassifier # Import Random Forest classifier\n",
+        "from sklearn.model_selection import train_test_split # Import for splitting datasets\n",
+        "from sklearn.metrics import classification_report, confusion_matrix # Import for model evaluation metrics"
+      ],
+      "id": "15f21e03",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| echo: false\n",
+        "#| warning: false\n",
+        "#| output: false\n",
+        "from keplergl import KeplerGl"
+      ],
+      "id": "98f19c5d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Next we need to initiate the authentication process for the Google Earth Engine (GEE) Python API. When you run this command, it prompts you to log in to your Google account and grant the necessary permissions for the script or application to access your Earth Engine resources."
+      ],
+      "id": "c1203ed5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "#| output: false\n",
+        "ee.Authenticate() # Follow the prompts to log in with your Google account."
+      ],
+      "id": "5747a1e5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Setup and Pixel Level Analysis\n",
+        "The first part of this tutorial will guide you through the various steps to extract embeddings for Liverpool City Region (LCRCA) and examine the structure of these data using a simple cluster analysis.\n",
+        "\n",
+        "### Step 1: Initialise Earth Engine\n",
+        "\n",
+        "The following code initialises the Google Earth Engine API."
+      ],
+      "id": "b82ef117"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "#| output: false\n",
+        "# Initialise Earth Engine\n",
+        "ee.Initialize()"
+      ],
+      "id": "b091dc26",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 2: Import the Location Data\n",
+        "\n",
+        "The following code creates a GeoPandas GeoDataFrame with the location of each property and reprojects all geometries into the WGS84 (EPSG:4326)."
+      ],
+      "id": "fa32bdd5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Read the GeoParquet file containing building locations\n",
+        "buildings = gpd.read_parquet('./data/lcrca_buildings.parquet')\n",
+        "\n",
+        "# Convert buildings to WGS84 coordinate system (EPSG:4326)\n",
+        "buildings = buildings.to_crs(epsg=4326)\n",
+        "buildings[\"lon\"] = buildings.geometry.x\n",
+        "buildings[\"lat\"] = buildings.geometry.y"
+      ],
+      "id": "18b7906b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 3: Access Google's Satellite Embedding Collection\n",
+        "The following code queries Google Earth Engine's satellite embedding collection to check if satellite image embeddings are available for a specified year (2017-2024). The processing loop iterates through each available year from 2017 to 2024, applying a temporal filter to isolate embeddings for the specified 12-month period.\n",
+        "\n",
+        "The `year_images` dictionary serves as a container where each year maps to its corresponding embedding image, making it straightforward to access specific years' data later in the workflow."
+      ],
+      "id": "6bbf1b15"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Read GeoPackage into a GeoDataFrame and convert to WGS84 (EPSG:4326)\n",
+        "lcrca = gpd.read_file('./data/lcrca.gpkg')\n",
+        "\n",
+        "# Reproject to WGS84\n",
+        "lcrca = lcrca.to_crs(epsg=4326)\n",
+        "\n",
+        "# Get the boundary coordinates\n",
+        "coords = lcrca.geometry.iloc[0].__geo_interface__\n",
+        "\n",
+        "# Convert to Earth Engine geometry\n",
+        "lcrca_geometry = ee.Geometry(coords)\n",
+        "\n",
+        "# Access the embedding collection\n",
+        "embedding_collection = ee.ImageCollection('GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL')\n",
+        "\n",
+        "# Work with each year separately\n",
+        "years = range(2017, 2025) \n",
+        "year_images = {}\n",
+        "\n",
+        "# Loop through each year from 2017 to 2024 that overlap with the LCRCA boundary\n",
+        "for year in years:\n",
+        "  year_filtered = embedding_collection \\\n",
+        "    .filterDate(f'{year}-01-01', f'{year}-12-31') \\\n",
+        "    .filterBounds(lcrca_geometry)\n",
+        "  \n",
+        "  # Check if any images exist for this year (avoid processing empty collections)\n",
+        "  if year_filtered.size().getInfo() > 0:\n",
+        "    # Create a mosaic from all filtered images and clip to the LCRCA boundary\n",
+        "    year_images[year] = year_filtered.mosaic().clip(lcrca_geometry)\n"
+      ],
+      "id": "f73dbd36",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 4: Explore the Structure of the Embeddings at the Pixel Level\n",
+        "\n",
+        "Using Earth Engine, we can quantify the scale of data within our study region by calculating the total number of 10-meter pixels. For the Liverpool City Region in 2024, this analysis reveals approximately 12.26 million pixels within the boundary. Since each pixel contains 64 embedding values, this represents a dataset with over 784 million individual data points (12.26 million × 64 dimensions). This scale illustrates both the opportunity and challenge of working with satellite embeddings."
+      ],
+      "id": "4ab106f5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Select 2024 as the year\n",
+        "emb_img = year_images[2024]\n",
+        "\n",
+        "# Calculate the total number of pixels in the region\n",
+        "pixel_count = emb_img.select(0).reduceRegion(\n",
+        "  reducer=ee.Reducer.count(),      # Count the number of valid pixels\n",
+        "  geometry=lcrca_geometry,         # Within the LCRCA boundary\n",
+        "  scale=10,                        # At 10-meter resolution\n",
+        "  maxPixels=1e9                    # Allow up to 1 billion pixels to be processed\n",
+        ")\n",
+        "\n",
+        "# Get and print the count\n",
+        "total_pixels = pixel_count.getInfo()\n",
+        "total_count = list(total_pixels.values())[0]\n",
+        "\n",
+        "print(f\"Total pixels in region at 10m scale: {total_count:,}\")"
+      ],
+      "id": "de6a8ff7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The following code block demonstrates how to extract pixel-level embeddings directly from Google Earth Engine, but **we do not run this code in the tutorial**. If executed, this function would:\n",
+        "\n",
+        "1. Randomly sample 50,000 pixels from within the Liverpool City Region boundary\n",
+        "2. Extract all 64 embedding values for each sampled pixel location\n",
+        "3. Export the results as CSV files to your Google Drive (in a folder called \"EE_exports\")\n",
+        "\n",
+        "**Why we skip this step:** With 12.26 million pixels in the region, processing even a sample of 50,000 pixels through Earth Engine's export system is time-consuming and requires managing multiple large CSV files.\n",
+        "\n",
+        "**What we provide instead:** To keep this tutorial focused on analysis techniques rather than data processing, we provide the sampled pixel data as a ready-to-use Parquet file that you can load directly.\n",
+        "\n",
+        "**When you might use this code:** If you're working with your own study area or need a different sample size, you can adapt this function for your specific requirements. The code is included here for transparency and to support your independent applications."
+      ],
+      "id": "7260b3e5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "def export_in_batches(image, geometry, total_pixels, batch_size=50000):\n",
+        "    \"\"\"Export data in smaller batches\"\"\"\n",
+        "    num_batches = (total_pixels + batch_size - 1) // batch_size\n",
+        "    \n",
+        "    for i in range(num_batches):\n",
+        "        # Use different seeds for each batch to get different samples\n",
+        "        samples = image.sample(\n",
+        "            region=geometry,\n",
+        "            scale=10,\n",
+        "            numPixels=min(batch_size, total_pixels - i * batch_size),\n",
+        "            seed=42 + i,  # Different seed for each batch\n",
+        "            geometries=True\n",
+        "        )\n",
+        "        \n",
+        "        export_task = ee.batch.Export.table.toDrive(\n",
+        "            collection=samples,\n",
+        "            description=f'sampled_data_export_batch_{i+1}',\n",
+        "            folder='EE_exports',\n",
+        "            fileNamePrefix=f'lcrca_samples_batch_{i+1}',\n",
+        "            fileFormat='CSV'\n",
+        "        )\n",
+        "        \n",
+        "        export_task.start()\n",
+        "        print(f\"Started batch {i+1}/{num_batches}\")\n",
+        "\n",
+        "# Usage\n",
+        "export_in_batches(emb_img, lcrca_geometry, 1200000, batch_size=50000)"
+      ],
+      "id": "80cec149",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Data Consolidation Process (Not Executed in Tutorial)**\n",
+        "Once the CSV export batches are complete, they need to be consolidated into a single dataset for analysis. The code below demonstrates how DuckDB can efficiently combine multiple CSV files into one DataFrame and export the result as a Parquet file."
+      ],
+      "id": "7f1484d7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "LCRCA_Samples = duckdb.sql(f\"SELECT * FROM read_csv_auto('./data/samples/lcrca_samples_batch_*.csv')\").df() # Create a single DataFrame\n",
+        "LCRCA_Samples = LCRCA_Samples.iloc[:, 1:-1] # Remove the first and last column\n",
+        "LCRCA_Samples.to_parquet('./data/LCRCA_Samples.parquet') # Export to a parquet"
+      ],
+      "id": "34837fdf",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Why DuckDB is useful here:** DuckDB treats multiple CSV files as if they were a single database table, eliminating the need to manually loop through files or manage memory for large datasets. This approach is particularly valuable when working with the batch export system from Google Earth Engine, which creates multiple files that need to be recombined.\n",
+        "\n",
+        "**Note:** Like the export code above, this consolidation step is not executed in the tutorial since we provide the pre-processed Parquet file. However, this pattern is essential for real-world applications where you generate your own export batches. \n",
+        "\n",
+        "We can read the parquet file into a DataFrame as follows and continue with our analysis."
+      ],
+      "id": "75238a84"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "LCRCA_Samples = pd.read_parquet('./data/LCRCA_Samples.parquet')"
+      ],
+      "id": "4d671251",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Using the sample we can examine the structure of the embeddings by fitting a Clustergram. This is a visualisation technique that shows how cluster assignments change as you increase the number of clusters (k). This helps you to understand the structure in very high-dimensional space in the following ways:\n",
+        "\n",
+        "* Optimal k selection: Helps you to determine the right number of clusters by visualising how cleanly clusters separate\n",
+        "* Cluster stability: Shows which clusters persist across different k values (stable long lines) vs. those which are artifacts of over-clustering (short, erratic lines)\n",
+        "* Split patterns: Reveals the natural hierarchy in the data by showing how clusters subdivide\n",
+        "\n",
+        "From the diagram, a five cluster solutions looks to be an optimal initial choice."
+      ],
+      "id": "2e5fad58"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "\n",
+        "# Create clustergram to visualise optimal number of clusters\n",
+        "cgram = Clustergram(range(1, 12), init=\"random\", n_init=10, random_state=42, verbose=False)\n",
+        "cgram.fit(LCRCA_Samples)\n",
+        "\n",
+        "cgram.plot(figsize=(8, 5))"
+      ],
+      "id": "474fea9a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "With the clustergram indicating that five clusters provide an optimal partitioning of the data, we can now apply K-means clustering to visualise the spatial distribution of building types. The following approach implements clustering directly within Google Earth Engine, which offers significant computational advantages over downloading the full dataset locally[^2].\n",
+        "\n",
+        "The code uses Earth Engine's built-in clustering capabilities to:\n",
+        "1. Sample 100,000 training pixels from across the region to build the clustering model\n",
+        "2. Apply the trained K-means classifier to all 12.26 million pixels in the study area\n",
+        "3. Return only the final cluster assignments rather than the raw embedding values\n",
+        "\n",
+        "[^2]: This server-side approach is computationally efficient because it processes the high-dimensional data where it resides (on Google's servers) rather than transferring millions of 64-dimensional vectors to your local machine. The result is a single-band image where each pixel is assigned a cluster label (0-4), which can then be visualised and exported as needed."
+      ],
+      "id": "ef75044b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "# Sample pixels across the region - this builds an initial training model which is then applied to all pixels\n",
+        "training = emb_img.sample(\n",
+        "  region=lcrca_geometry,        # Sample within the LCRCA boundary\n",
+        "  scale=10,                     # Use 10-meter pixel resolution (matches embedding data)\n",
+        "  numPixels=100000,             # Extract 100,000 random pixels for training\n",
+        "  seed=42                       # Set random seed for reproducible sampling\n",
+        ")\n",
+        "\n",
+        "# Train K-Means with 5 clusters\n",
+        "clusterer = ee.Clusterer.wekaKMeans(5).train(training)\n",
+        "\n",
+        "# Apply to the image\n",
+        "result = emb_img.cluster(clusterer).clip(lcrca_geometry)\n",
+        "\n",
+        "# Define the same colours for visualisation\n",
+        "cluster_colours = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00']\n",
+        "\n",
+        "# Create a palette for the clusters (GEE format)\n",
+        "palette = cluster_colours\n",
+        "\n",
+        "# Set visualisation parameters\n",
+        "vis_params = {\n",
+        "    'min': 0,\n",
+        "    'max': 4,\n",
+        "    'palette': palette\n",
+        "}\n",
+        "\n",
+        "# Export as static image\n",
+        "url = result.getThumbURL({\n",
+        "    'dimensions': 1024,  # Image width/height in pixels\n",
+        "    'region': lcrca_geometry,\n",
+        "    'min': 0,\n",
+        "    'max': 4,\n",
+        "    'palette': palette,\n",
+        "    'format': 'png',\n",
+        "    'crs': 'EPSG:27700'\n",
+        "})\n",
+        "\n",
+        "# Download the image locally\n",
+        "response = requests.get(url)\n",
+        "response.raise_for_status()  # Raise an exception for bad status codes\n",
+        "\n",
+        "# Create a local filename\n",
+        "local_filename = \"./images/lcrca_clusters.png\"\n",
+        "\n",
+        "# Save the image locally\n",
+        "with open(local_filename, 'wb') as f:\n",
+        "    f.write(response.content)\n",
+        "\n",
+        "# Display the local image\n",
+        "display(Image(filename=local_filename, width=750))"
+      ],
+      "id": "1deb4897",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "# Display the local image\n",
+        "display(Image(filename=\"./images/lcrca_clusters.png\", width=750))"
+      ],
+      "id": "f768e3a8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Building Cluster Analysis\n",
+        "The following section extends the analysis to illustrate how geographic locations (in this case buildings) can be appended with pixel level embeddings across a regional extent. In this example we are going to use a database of [TOID (Topographic Identifier)](https://www.ordnancesurvey.co.uk/products/os-open-toid) from the Ordnance Survey[^3].\n",
+        "\n",
+        "[^3]: A TOID (Topographic Identifier) is a unique and persistent identifier for each and every feature found in [OS MasterMap](https://www.ordnancesurvey.co.uk/products/os-mastermap-topography-layer) products. Because the raw dataset shows unique identifiers for a wide range of landscape and built environment features, these were limited to only those where the TOID had an associated [UPRN](https://www.ordnancesurvey.co.uk/products/os-open-uprn), which are an authoritative identifier used to uniquely identify addressable locations.\n",
+        "\n",
+        "### Step 5: Extract Pixel Values for Each Building\n",
+        "Having imported the building locations earlier, we can now extract pixel-level embeddings for each individual building. This process requires careful handling of the large dataset—with over 640,000 building points, as attempting to process all locations simultaneously would exceed Google Earth Engine processing limits.\n",
+        "\n",
+        "**Batch Processing Strategy:**\n",
+        "\n",
+        "The code below implements a batch processing approach that:\n",
+        "1. Divides the buildings into manageable batches of 1,000 points each\n",
+        "2. Converts each batch into an Earth Engine FeatureCollection for server-side processing\n",
+        "3. Uses `reduceRegions()` with a `first()` reducer to extract the embedding values at each building's coordinate\n",
+        "4. Combines results from all batches into a single dataset\n",
+        "\n",
+        "Each building point extracts the embedding value from the single 10×10 meter pixel that contains that coordinate. This means the \"building\" embedding actually represents the spectral characteristics of whatever land cover exists within that pixel, which may include the building roof, surrounding vegetation, pavement, or other features depending on the building size and the precise coordinate location within the pixel.\n",
+        "\n",
+        "This spatial relationship is crucial to understand when interpreting results: smaller buildings may be represented by pixels that capture significant non-building features, while larger buildings are more likely to have pixels dominated by roof characteristics."
+      ],
+      "id": "95183d05"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "\n",
+        "# Parameters\n",
+        "year = 2024\n",
+        "batch_size = 1000   # batch size\n",
+        "\n",
+        "# Get embedding image\n",
+        "embedding_collection = ee.ImageCollection('GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL')\n",
+        "embedding_image = embedding_collection.filterDate(f\"{year}-01-01\", f\"{year}-12-31\").mosaic()\n",
+        "\n",
+        "# Storage for results\n",
+        "all_results = []\n",
+        "\n",
+        "# Split into batches\n",
+        "n_batches = int(np.ceil(len(buildings) / batch_size))\n",
+        "print(f\"Total points: {len(buildings)}, processing in {n_batches} batches of {batch_size}\")\n",
+        "\n",
+        "for i in range(n_batches):\n",
+        "    # Select the current batch of buildings for processing\n",
+        "    start = i * batch_size\n",
+        "    end = min((i + 1) * batch_size, len(buildings))\n",
+        "    batch = buildings.iloc[start:end]\n",
+        "\n",
+        "    print(f\"Processing batch {i+1}/{n_batches} with {len(batch)} points...\")\n",
+        "\n",
+        "    # Build FeatureCollection\n",
+        "    features = []  # Initialise an empty list to store Earth Engine features\n",
+        "    for idx, row in batch.iterrows():  # Iterate over each row\n",
+        "      point = ee.Geometry.Point([row['lon'], row['lat']])  # Create a Point geometry\n",
+        "      feature = ee.Feature(point, {\"index\": idx})  # Create an Earth Engine Feature\n",
+        "      features.append(feature)  # Add the feature to the list\n",
+        "\n",
+        "    # Convert the list of features to an Earth Engine FeatureCollection\n",
+        "    fc = ee.FeatureCollection(features)\n",
+        "\n",
+        "    # Extract embeddings for each building point in the batch\n",
+        "    extracted = embedding_image.reduceRegions(\n",
+        "      collection=fc,                # The FeatureCollection of building points\n",
+        "      reducer=ee.Reducer.first(),   # Extract the first value for each embedding band at each point\n",
+        "      scale=10,                     # Use 10-meter pixel resolution (matches embedding data)\n",
+        "      tileScale=4                   # Increase tileScale to handle larger regions and avoid memory errors\n",
+        "    )\n",
+        "  \n",
+        "    # Convert to DataFrame\n",
+        "    results = extracted.getInfo()  # Retrieve the results into a Python dictionary\n",
+        "    embedding_dict = {}  # Initialise an empty dictionary\n",
+        "    for feature in results['features']:  # Iterate over each feature (building point) in the results\n",
+        "      props = feature['properties']  # Extract the properties (embedding values and index) for this feature\n",
+        "      idx = props.pop(\"index\")  # Remove and get the 'index' property (original building index)\n",
+        "      band_values = {k: v for k, v in props.items() if not k.startswith(\"system:\")}  # Filter out system fields, keep only embedding bands\n",
+        "      embedding_dict[idx] = band_values  # Store the embedding values in the dictionary, keyed by building index\n",
+        "\n",
+        "    # Convert the embedding_dict (indexed by building index) to a DataFrame\n",
+        "    batch_df = pd.DataFrame.from_dict(embedding_dict, orient=\"index\")\n",
+        "    batch_df.index.name = \"index\"  # Set the index name for merging with the batch\n",
+        "\n",
+        "    # Merge with original batch\n",
+        "    merged = batch.reset_index().merge(batch_df, left_on=\"index\", right_index=True, how=\"left\").drop(columns=\"index\")\n",
+        "    all_results.append(merged)\n",
+        "\n",
+        "# Combine all batches\n",
+        "result = pd.concat(all_results, ignore_index=True)\n",
+        "\n",
+        "# Output parquet file\n",
+        "result.to_parquet('./data/buildings_with_embeddings.parquet', index=False)"
+      ],
+      "id": "9c7e3b7b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 6: Identify a Cluster Frequency and fit K-Means Clustering to the Buildings\n",
+        "\n",
+        "The batch processing code above was executed to create a comprehensive dataset linking each building location with its corresponding satellite embeddings. The results are stored in a Parquet which are loaded as follows."
+      ],
+      "id": "20fff439"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "buildings_with_embeddings = pd.read_parquet('./data/buildings_with_embeddings.parquet')"
+      ],
+      "id": "3ea1dd5b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "To determine whether the five-cluster solution identified from regional pixel sampling also applies to our building-specific dataset, we apply the same clustergram analysis to the building embeddings. This comparison is important because building locations represent a spatial subset of the broader landscape and may exhibit different clustering patterns than randomly sampled pixels."
+      ],
+      "id": "d26a9e00"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "\n",
+        "# Create clustergram to visualise optimal number of clusters\n",
+        "embedding_cols = [f\"A{str(i).zfill(2)}\" for i in range(64)]\n",
+        "cgram = Clustergram(range(1, 12), n_init=10, random_state=42, verbose=False)\n",
+        "cgram.fit(buildings_with_embeddings[embedding_cols])\n",
+        "\n",
+        "cgram.plot(figsize=(8, 5))"
+      ],
+      "id": "b4568c39",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "**Results:** The Clustergram analysis confirms that five clusters remain an appropriate partitioning for the building-level data, with cluster assignments showing stability across different values of k and clear separation patterns similar to those observed in the regional pixel analysis. This consistency suggests that the embedding patterns we identified from random sampling effectively capture the dominant building types present in the Liverpool City Region.\n",
+        "\n",
+        "Given the smaller size of the building data we will cluster locally within Python. K means is therefore used directly on `buildings_with_embeddings`, setting 1000 random initital seeds with an objective of finding 5 clusters. The repeated initialisations helps ensure we find the global optimum rather than getting trapped in local minima, which is particularly important given the 64-dimensional embedding space where K-means can be sensitive to initial centroid placement."
+      ],
+      "id": "7addd41b"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| eval: false\n",
+        "#| warning: false\n",
+        "\n",
+        "# Fit K-Means with 5 clusters and 1000 initialisations\n",
+        "kmeans = KMeans(n_clusters=5, init=\"random\", n_init=1000, random_state=42)\n",
+        "labels = kmeans.fit_predict(buildings_with_embeddings[embedding_cols])\n",
+        "\n",
+        "# Map numeric labels to letters\n",
+        "label_map = {i: chr(65 + i) for i in range(5)}  # 0->A, 1->B, etc.\n",
+        "letter_labels = [label_map[label] for label in labels]\n",
+        "\n",
+        "# Create output table with TOID and assigned cluster letter\n",
+        "output_table = buildings_with_embeddings[['TOID']].copy()\n",
+        "output_table['cluster'] = letter_labels\n",
+        "\n",
+        "output_table.to_parquet('./data/output_table.parquet', index=False) # Export the clustering results"
+      ],
+      "id": "6537d69a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The output from the cluster analysis can then be used to create a geographic files that can be mapped."
+      ],
+      "id": "bb1cee06"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| echo: false\n",
+        "#| warning: false\n",
+        "output_table = pd.read_parquet('./data/output_table.parquet') # Read the clustering results"
+      ],
+      "id": "abf89f5e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Create a GeoDataFrame with the clustering results\n",
+        "gdf = gpd.GeoDataFrame(\n",
+        "  buildings_with_embeddings[['TOID', 'lon', 'lat']].copy(),\n",
+        "  geometry=gpd.points_from_xy(buildings_with_embeddings['lon'], buildings_with_embeddings['lat']),\n",
+        "  crs=\"EPSG:4326\"\n",
+        ")\n",
+        "\n",
+        "# Merge with output_table on TOID\n",
+        "gdf = gdf.merge(output_table, on='TOID', how='left')"
+      ],
+      "id": "e9a30db6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 7: Map the Results\n",
+        "The following code creates a GeoPackage file that can be mapped in [QGIS](https://www.qgis.org/)."
+      ],
+      "id": "256b736f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "gdf.to_file('./data/buildings_with_clusters.gpkg', layer='buildings_clusters', driver='GPKG')"
+      ],
+      "id": "f10eaf57",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can also visualise these results on the following interactive map:"
+      ],
+      "id": "175e8d80"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "#| echo: false\n",
+        "#| output: false\n",
+        "\n",
+        "# Prepare DataFrame\n",
+        "df = gdf[['TOID', 'lon', 'lat', 'cluster']].copy()\n",
+        "df['cluster'] = df['cluster'].astype(str).str.strip()  # ensure clean labels\n",
+        "\n",
+        "# Custom cluster colours\n",
+        "colors = {\n",
+        "    'A': '#8dd3c7',\n",
+        "    'B': '#ffffb3',\n",
+        "    'C': '#bebada',\n",
+        "    'D': '#fb8072',\n",
+        "    'E': '#80b1d3'\n",
+        "}\n",
+        "# Kepler applies colours in the order categories are sorted\n",
+        "sorted_clusters = sorted(colors.keys())\n",
+        "color_list = [colors[k] for k in sorted_clusters]\n",
+        "\n",
+        "# Config\n",
+        "config = {\n",
+        "    \"version\": \"v1\",\n",
+        "    \"config\": {\n",
+        "        \"visState\": {\n",
+        "            \"filters\": [],\n",
+        "            \"layers\": [\n",
+        "                {\n",
+        "                    \"id\": \"clusters_layer\",\n",
+        "                    \"type\": \"point\",\n",
+        "                    \"config\": {\n",
+        "                        \"dataId\": \"clusters\",\n",
+        "                        \"label\": \"Clusters\",\n",
+        "                        \"color\": [130, 154, 227],  # default layer colour (must exist)\n",
+        "                        \"highlightColor\": [252, 242, 26, 255],\n",
+        "                        \"columns\": {\"lat\": \"lat\", \"lng\": \"lon\"},\n",
+        "                        \"isVisible\": True,\n",
+        "                        \"visConfig\": {\n",
+        "                            \"radius\": 2,\n",
+        "                            \"fixedRadius\": False,\n",
+        "                            \"opacity\": 0.8,\n",
+        "                            \"outline\": False,\n",
+        "                            \"thickness\": 2,\n",
+        "                            \"strokeColor\": None,\n",
+        "                            \"colorRange\": {\n",
+        "                                \"name\": \"Custom\",\n",
+        "                                \"type\": \"qualitative\",\n",
+        "                                \"category\": \"Custom\",\n",
+        "                                \"colors\": [\n",
+        "                                    \"#8dd3c7\",\n",
+        "                                    \"#ffffb3\",\n",
+        "                                    \"#bebada\",\n",
+        "                                    \"#fb8072\",\n",
+        "                                    \"#80b1d3\"\n",
+        "                                ]\n",
+        "                            },\n",
+        "                            \"strokeColorRange\": {\n",
+        "                                \"name\": \"Global Warming\",\n",
+        "                                \"type\": \"sequential\",\n",
+        "                                \"category\": \"Uber\",\n",
+        "                                \"colors\": [\n",
+        "                                    \"#5A1846\",\n",
+        "                                    \"#900C3F\",\n",
+        "                                    \"#C70039\",\n",
+        "                                    \"#E3611C\",\n",
+        "                                    \"#F1920E\",\n",
+        "                                    \"#FFC300\"\n",
+        "                                ]\n",
+        "                            },\n",
+        "                            \"radiusRange\": [0, 50],\n",
+        "                            \"filled\": True\n",
+        "                        },\n",
+        "                        \"hidden\": False,\n",
+        "                        \"textLabel\": [\n",
+        "                            {\n",
+        "                                \"field\": None,\n",
+        "                                \"color\": [255, 255, 255],\n",
+        "                                \"size\": 18,\n",
+        "                                \"offset\": [0, 0],\n",
+        "                                \"anchor\": \"start\",\n",
+        "                                \"alignment\": \"center\",\n",
+        "                                \"outlineWidth\": 0,\n",
+        "                                \"outlineColor\": [255, 0, 0, 255],\n",
+        "                                \"background\": False,\n",
+        "                                \"backgroundColor\": [0, 0, 200, 255]\n",
+        "                            }\n",
+        "                        ]\n",
+        "                    },\n",
+        "                    \"visualChannels\": {\n",
+        "                        \"colorField\": {\"name\": \"cluster\", \"type\": \"string\"},\n",
+        "                        \"colorScale\": \"ordinal\",\n",
+        "                        \"strokeColorField\": None,\n",
+        "                        \"strokeColorScale\": \"quantile\",\n",
+        "                        \"sizeField\": None,\n",
+        "                        \"sizeScale\": \"linear\"\n",
+        "                    }\n",
+        "                }\n",
+        "            ],\n",
+        "            \"effects\": [],\n",
+        "            \"interactionConfig\": {\n",
+        "                \"tooltip\": {\n",
+        "                    \"fieldsToShow\": {\n",
+        "                        \"clusters\": [\n",
+        "                            {\"name\": \"TOID\", \"format\": None},\n",
+        "                            {\"name\": \"cluster\", \"format\": None}\n",
+        "                        ]\n",
+        "                    },\n",
+        "                    \"compareMode\": False,\n",
+        "                    \"compareType\": \"absolute\",\n",
+        "                    \"enabled\": True\n",
+        "                },\n",
+        "                \"brush\": {\"size\": 0.5, \"enabled\": False},\n",
+        "                \"geocoder\": {\"enabled\": False},\n",
+        "                \"coordinate\": {\"enabled\": False}\n",
+        "            },\n",
+        "            \"layerBlending\": \"normal\",\n",
+        "            \"overlayBlending\": \"normal\",\n",
+        "            \"splitMaps\": [],\n",
+        "            \"animationConfig\": {\"currentTime\": None, \"speed\": 1},\n",
+        "            \"editor\": {\"features\": [], \"visible\": True}\n",
+        "        },\n",
+        "        \"mapState\": {\n",
+        "            \"bearing\": 0,\n",
+        "            \"dragRotate\": False,\n",
+        "            \"latitude\": 53.39056,\n",
+        "            \"longitude\": -2.90914,\n",
+        "            \"pitch\": 0,\n",
+        "            \"zoom\": 14.08,\n",
+        "            \"isSplit\": False,\n",
+        "            \"isViewportSynced\": True,\n",
+        "            \"isZoomLocked\": False,\n",
+        "            \"splitMapViewports\": []\n",
+        "        },\n",
+        "        \"mapStyle\": {\n",
+        "            \"styleType\": \"dark-matter\",\n",
+        "            \"topLayerGroups\": {},\n",
+        "            \"visibleLayerGroups\": {},\n",
+        "            \"threeDBuildingColor\": [209, 206, 199],\n",
+        "            \"backgroundColor\": [0, 0, 0],\n",
+        "            \"mapStyles\": {\n",
+        "                \"dark-matter\": {\n",
+        "                    \"id\": \"dark-matter\",\n",
+        "                    \"label\": \"Carto Dark Matter\",\n",
+        "                    \"url\": \"https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json\"\n",
+        "                }\n",
+        "            }\n",
+        "        }\n",
+        "    }\n",
+        "}\n",
+        "\n",
+        "\n",
+        "# Create and show map\n",
+        "map_with_basemap = KeplerGl(data={\"clusters\": df}, config=config,height=600)\n",
+        "# map_with_basemap\n",
+        "map_with_basemap.save_to_html(file_name=\"cluster_map.html\")"
+      ],
+      "id": "c912e7d5",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "<iframe src=\"cluster_map.html\" width=\"100%\" height=\"300px\" style=\"border:none;\"></iframe>\n",
+        "\n",
+        "\n",
+        "## Explore the Structure of the Embeddings and Clusters using UMAP\n",
+        "\n",
+        "UMAP (Uniform Manifold Approximation and Projection)[^4] is a dimensionality reduction technique that converts high-dimensional data into 2D or 3D representations for visualisation [@mcinnes2020umapuniformmanifoldapproximation]. In our case, UMAP takes the 64-dimensional embedding vectors and projects them onto a 2D plot while preserving the relationships between data points—locations that are similar in the original 64-dimensional space will appear close together in the 2D visualisation.\n",
+        "\n",
+        "This technique is particularly valuable for understanding cluster quality and separation. Well-separated clusters in the UMAP plot indicate that the clustering algorithm has identified genuinely distinct building types, while overlapping clusters suggest that some building types may be too similar to distinguish reliably using the satellite embeddings.\n",
+        "\n",
+        "[^4]: For a really nice visual explanation of UMAP V t-SNE which is an alternative method, see this [blog](https://pair-code.github.io/understanding-umap/).\n",
+        "\n",
+        "First we create a new DataFrame that contains the building embeddings and the assigned clusters that will be used in the UMAP visualisation."
+      ],
+      "id": "6b076d7d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Prepare a DataFrame for UMAP visualisation:\n",
+        "umap_DF = buildings_with_embeddings[[f\"A{str(i).zfill(2)}\" for i in range(64)] + [\"TOID\"]].merge(\n",
+        "  gdf[[\"TOID\", \"cluster\"]], on=\"TOID\", how=\"left\"\n",
+        ")"
+      ],
+      "id": "19061a87",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 8: Fit UMAP and Visualise the Results\n",
+        "The first stage is to apply UMAP using a number of different parameters that control various aspects of how the model is applied:\n",
+        "\n",
+        "* `n_neighbors` - Controls the balance between local and global structure in the data. Small values emphasise local clusters wheras large values (e.g. 50+) preserve more global structure, but may blur small clusters.\n",
+        "* `min_dist` - The minimum distance between points in the low-dimensional space. Low values (close to 0) allow for very tight clusters, whereas higher values (e.g. 0.5) enforce more spread-out embeddings.\n",
+        "* `n_components`- The number of output dimensions (i.e. 2 for 2D, 3 for 3D)\n",
+        "* `random_state` - Sets a random seed for reproducibility which ensures that running UMAP multiple times gives the same layout.\n",
+        "* `metric` - The distance metric used to measure similarity between data points in the input space. Cosine works well for embeddings (text/image) since it cares about direction, not magnitude.\n",
+        "* `init` - How to initialise the embedding.\n",
+        "* `spectral` Sets a Laplacian Eigenmap [@6789755] initialisation[^5]\n",
+        "* `n_epochs` - The number of training iterations, with more epochs producing more more stable embedding, but taking a longer runtime.\n",
+        "* `spread` - This works with `min_dist` to control how spread-out the clusters are.Larger spread makes clusters take more space in the embedding.\n",
+        "* `verbose` - If True, this prints progress information while running.\n",
+        "\n",
+        "::: {.column-margin}\n",
+        "[^5]: Laplacian eigenmap initialisation works as follows in simple terms:\n",
+        "\n",
+        "1. Build a graph - Connect each data point to its nearest neighbors, creating a network where nearby points are linked\n",
+        "2. Create a Laplacian matrix - This captures the structure of the neighbourhood graph in a mathematical form\n",
+        "3. Find the eigenvectors - Compute the smallest eigenvectors of this Laplacian matrix\n",
+        "4. Use as coordinates - These eigenvectors become the initial coordinates for the data points in the lower-dimensional space\n",
+        "\n",
+        "This works because the eigenvectors corresponding to the smallest eigenvalues naturally arrange points so that neighbors in the original high-dimensional space remain close together in the new low-dimensional representation.\n",
+        ":::"
+      ],
+      "id": "bb91d279"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "# Extract the 64 embedding columns\n",
+        "embedding_cols = [f\"A{str(i).zfill(2)}\" for i in range(64)]\n",
+        "embeddings_data = umap_DF[embedding_cols].values\n",
+        "\n",
+        "# Apply UMAP to reduce 64 dimensions to 2D\n",
+        "umap_reducer = umap.UMAP(\n",
+        "    n_neighbors=30,        # Numbers of neighbours\n",
+        "    min_dist=0.0,          # Allow points to be closer together\n",
+        "    n_components=2,        # Reduce to 2D for visualsation\n",
+        "    random_state=42,       # For reproducible results\n",
+        "    metric='cosine',       # Cosine similarity works well for embeddings\n",
+        "    init='random',         # Use random initialisation\n",
+        "    n_epochs=500,          # More epochs for better convergence\n",
+        "    spread=1.0,            # Controls how tightly points are packed\n",
+        "    verbose=False          # Show progress\n",
+        ")\n",
+        "\n",
+        "# Fit UMAP and transform the data\n",
+        "umap_embedding = umap_reducer.fit_transform(embeddings_data)\n",
+        "\n",
+        "# Create a DataFrame with UMAP coordinates and existing cluster labels\n",
+        "umap_results = pd.DataFrame({\n",
+        "    'UMAP1': umap_embedding[:, 0],\n",
+        "    'UMAP2': umap_embedding[:, 1],\n",
+        "    'Cluster': umap_DF['cluster'],  # Use existing cluster column\n",
+        "    'TOID': umap_DF['TOID']        # Use existing TOID column\n",
+        "})\n",
+        "\n",
+        "# Save the UMAP results\n",
+        "umap_results.to_parquet('./data/buildings_umap_results.parquet', index=False)"
+      ],
+      "id": "a7d55ba1",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| echo: false\n",
+        "umap_results = pd.read_parquet('./data/buildings_umap_results.parquet')"
+      ],
+      "id": "c38dc3d0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can then visualise the results on an interactive plot:"
+      ],
+      "id": "bc2ffcc5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "out.width": "100%"
+      },
+      "source": [
+        "# Define colours for each cluster - match the earlier map\n",
+        "colours = {\n",
+        "    'A': '#8dd3c7',\n",
+        "    'B': '#ffffb3', \n",
+        "    'C': '#bebada',\n",
+        "    'D': '#fb8072',\n",
+        "    'E': '#80b1d3'\n",
+        "}\n",
+        "\n",
+        "# Create interactive plot\n",
+        "fig_interactive = px.scatter(\n",
+        "    umap_results, \n",
+        "    x='UMAP1', \n",
+        "    y='UMAP2', \n",
+        "    color='Cluster',\n",
+        "    color_discrete_map=colours,\n",
+        "    hover_data=['TOID']\n",
+        ")\n",
+        "fig_interactive.update_traces(marker=dict(size=2, opacity=0.7))\n",
+        "fig_interactive.show()"
+      ],
+      "id": "6860585d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The spatial arrangement of clusters in the UMAP visualisation provides insights into clustering quality. Well-separated clusters indicate distinct building types, while overlapping clusters suggest similar characteristics that may be difficult to distinguish. To quantify these patterns, we can calculate several statistics:\n",
+        "\n",
+        "* **Cluster Size Distribution:** Shows how many buildings fall into each cluster, revealing the relative prevalence of different building types across the study area.\n",
+        "\n",
+        "* **Cluster Centroids:** The average position of each cluster in the 2D UMAP space, which helps measure the distances between different building types and identify which clusters are most similar or distinct."
+      ],
+      "id": "9c234952"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Cluster statistics\n",
+        "cluster_stats = (\n",
+        "    umap_results['Cluster']\n",
+        "    .value_counts()\n",
+        "    .sort_index()\n",
+        "    .rename_axis(\"Cluster\")\n",
+        "    .reset_index(name=\"Count\")\n",
+        ")\n",
+        "cluster_stats[\"Percentage\"] = (cluster_stats[\"Count\"] / len(umap_results) * 100).round(1)\n",
+        "\n",
+        "# Cluster separation in UMAP space\n",
+        "cluster_centres_umap = (\n",
+        "    umap_results.groupby(\"Cluster\")[[\"UMAP1\", \"UMAP2\"]]\n",
+        "    .mean()\n",
+        "    .reset_index()\n",
+        "    .rename(columns={\"UMAP1\": \"Centre UMAP1\", \"UMAP2\": \"Centre UMAP2\"})\n",
+        "    .round(2)\n",
+        ")\n",
+        "\n",
+        "# Merge both summaries into one table\n",
+        "cluster_summary = pd.merge(cluster_stats, cluster_centres_umap, on=\"Cluster\")\n",
+        "\n",
+        "# Display the results\n",
+        "cluster_summary.style.hide(axis='index').format({\n",
+        "    'Percentage': '{:.1f}',\n",
+        "    'Centre UMAP1': '{:.2f}',\n",
+        "    'Centre UMAP2': '{:.2f}',\n",
+        "    'Count': '{:d}'  # Keep count as integer\n",
+        "})"
+      ],
+      "id": "8d158b4e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The most separated clusters is Cluster E (0.71, 9.67) which is isolated in top-left and very distinct from all other types. This cluster tends to represent larger more specialised buildings such as industrial or other commercial uses.\n",
+        "\n",
+        "Cluster D (7.29, 6.27) in the top-right position is the second most unique building type and tends to represent high-density residential buildings mostly in terraced form. Less dense and larger terraces are often found in Cluster C (bottom right).\n",
+        "\n",
+        "Clusters B & C (3.43, 3.35) & (6.21, 1.77) are reasonably close together and might be considered for combination into a single cluster. However, when exploring these locations Cluster B trends towards larger properties, many of which are semi detached or detached.\n",
+        "\n",
+        "## Matching Building Characteristics to Describe the Clusters\n",
+        "\n",
+        "A challenge when analysing buildings at a TOID level is that there are few ancillary attributes available for this geography that can be linked directly. As mentioned earlier, UPRN: which are address locations link to a TOID. For property such as a single occupant detached or semi detached houses, there would likely be only a single UPRN within these TOID. However, for other types of property, such as houses of multiple occupancy or flats, there can be multiple UPRN within a TOID. Additionally, commercial buildings will often have multiple UPRN within them; and for some TOID, these may have both a residential and commercial use (e.g. a flat about a high street shop).\n",
+        "\n",
+        "An advantage of UPRN geography is that there are numerous external data that enable us to characterise the linked TOID. A good source of attributes for UPRN are collected when EPC certificates ([Energy Performance Certificates](https://www.gov.uk/find-energy-certificate))[^6] are generated for the address. You might be thinking why we haven't just been using UPRN geography rather than TOID all along: they are after all [geographically referenced](https://geoportal.statistics.gov.uk/search?q=PRD_ONSUD). The problem is that these tend to be less accurate locations for the building, so it is better to use TOID locations if wishing to attribute attributes at the building level. This is something to watch out for as a lot of applications are georeferenced with UPRN!\n",
+        "\n",
+        "[^6]: EPC are standardised documents that rate the energy efficiency of buildings on a scale from A (most efficient) to G (least efficient). EPC contain a detailed technical profile of the building that energy assessors use to calculate both current performance and improvement potential. The certificate essentially provides a census of the property's physical characteristics that influence energy consumption.\n",
+        "\n",
+        "The following code imports a Parquet that contains a number of EPC derived attributes for the TOID[^7], which were then appended to the cluster results. We also need to re-code some of the values to make them more useful."
+      ],
+      "id": "bd6793e3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Load EPC-derived building characteristics for each TOID\n",
+        "TOID_EPC_characteristics = pd.read_parquet('./data/TOID_EPC_characteristics.parquet') \n",
+        "\n",
+        "# Recode BUILT_FORM values\n",
+        "TOID_EPC_characteristics['BUILT_FORM'] = TOID_EPC_characteristics['BUILT_FORM'].replace({\n",
+        "  'Mid-Terrace': 'Terrace',\n",
+        "  'End-Terrace': 'Terrace',\n",
+        "  'Enclosed Mid-Terrace': 'Terrace',\n",
+        "  'Enclosed End-Terrace': 'Terrace',\n",
+        "  'NO DATA!': None\n",
+        "})\n",
+        "\n",
+        "# Simple recoding of CONSTRUCTION_AGE_BAND column\n",
+        "TOID_EPC_characteristics['CONSTRUCTION_AGE_BAND'] = TOID_EPC_characteristics['CONSTRUCTION_AGE_BAND'].replace({\n",
+        "    # No data\n",
+        "    'NO DATA!': None,\n",
+        "    'INVALID!': None,\n",
+        "    \n",
+        "    # Pre-1900\n",
+        "    'before 1900': '1900 or earlier',\n",
+        "  \n",
+        "    # All 1900-1929\n",
+        "    '1900': '1900-1929',\n",
+        "    '1900-1929': '1900-1929',\n",
+        "    \n",
+        "    # All 1983-1995\n",
+        "    '1983-1990': '1983-1995',\n",
+        "    '1991-1995': '1983-1995',\n",
+        "    \n",
+        "    # 2003 onwards\n",
+        "    '2003-2006': '2003 onwards',\n",
+        "    '2007': '2003 onwards',\n",
+        "    '2007-2011': '2003 onwards', \n",
+        "    '2008': '2003 onwards',\n",
+        "    '2007 onwards': '2003 onwards',\n",
+        "    '2009': '2003 onwards',\n",
+        "    '2010': '2003 onwards',\n",
+        "    '2012': '2003 onwards',\n",
+        "    '2012 onwards': '2003 onwards',\n",
+        "    '2013': '2003 onwards',\n",
+        "    '2014': '2003 onwards',\n",
+        "    '2015': '2003 onwards',\n",
+        "    '2016': '2003 onwards',\n",
+        "    '2017': '2003 onwards',\n",
+        "    '2018': '2003 onwards',\n",
+        "    '2019': '2003 onwards',\n",
+        "    '2020': '2003 onwards',\n",
+        "    '2021': '2003 onwards',\n",
+        "    '2022': '2003 onwards',\n",
+        "    '2023': '2003 onwards',\n",
+        "    '2024': '2003 onwards',\n",
+        "    '2025': '2003 onwards'\n",
+        "})"
+      ],
+      "id": "74b71073",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "[^7]: These are derived data that have been precompiled for this tutorial. The source data were EPC records, with a link made between UPRN and TOID using [LIDS](https://osdatahub.os.uk/downloads/open/LIDS), with postcodes appended to UPRN from [NSUL](https://geoportal.statistics.gov.uk/search?q=PRD_NSUL). For each TOID, the most prevalent category of assigned values from the EPC and NSUL were ascribed to the TOID. "
+      ],
+      "id": "e39cd7f6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Merge EPC-derived building characteristics into UMAP results using TOID\n",
+        "output_table = output_table.merge(TOID_EPC_characteristics, on=\"TOID\", how=\"left\")"
+      ],
+      "id": "9b582337",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 9: Plot Built Form\n",
+        "The heatmap below shows propensity indices for built form categories across the five clusters. The propensity index compares each cluster's proportion of a building type to the overall average-values. A score above 1.0 indicates above-average concentrations, while values below 1.0 indicate below-average concentrations.\n",
+        "\n",
+        "* **Cluster B** shows the strongest association with detached houses (propensity index > 1.0) and moderate over-representation of semi-detached properties.\n",
+        "* **Clusters C and E** both exhibit higher concentrations of terraced housing compared to the regional average.\n",
+        "* **Clusters A and D** show more balanced distributions across built form categories."
+      ],
+      "id": "7523d360"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculate overall proportion for each built form\n",
+        "overall_props = output_table['BUILT_FORM'].value_counts(normalize=True)\n",
+        "\n",
+        "# Calculate cluster-specific proportions\n",
+        "cluster_props = output_table.groupby('cluster')['BUILT_FORM'].value_counts(normalize=True).unstack(fill_value=0)\n",
+        "\n",
+        "# Calculate propensity index (cluster proportion / overall proportion)\n",
+        "propensity_index = cluster_props.div(overall_props, axis=1)\n",
+        "\n",
+        "# Plot heatmap of propensity index\n",
+        "plt.figure(figsize=(8, 5))\n",
+        "sns.heatmap(propensity_index, annot=True, fmt='.2f', cmap='RdBu_r', center=1, \n",
+        "            cbar_kws={'label': 'Propensity Index (1.0 = average)'})\n",
+        "plt.xlabel('Built Form')\n",
+        "plt.ylabel('Cluster')\n",
+        "plt.tight_layout()\n",
+        "plt.show()"
+      ],
+      "id": "d91cd7f3",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 10: Plot Property Type\n",
+        "We can also explore the property types, which relate to the categories of House, Flat, Bungalow, Maisonette and Park home. "
+      ],
+      "id": "e0b1f547"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculate overall proportion for each property type\n",
+        "overall_props = output_table['PROPERTY_TYPE'].value_counts(normalize=True)\n",
+        "\n",
+        "# Calculate cluster-specific proportions\n",
+        "cluster_props = output_table.groupby('cluster')['PROPERTY_TYPE'].value_counts(normalize=True).unstack(fill_value=0)\n",
+        "\n",
+        "# Calculate propensity index (cluster proportion / overall proportion)\n",
+        "propensity_index = cluster_props.div(overall_props, axis=1)\n",
+        "\n",
+        "# Plot heatmap of propensity index\n",
+        "plt.figure(figsize=(8, 5))\n",
+        "sns.heatmap(propensity_index, annot=True, fmt='.2f', cmap='RdBu_r', center=1, \n",
+        "            cbar_kws={'label': 'Propensity Index (1.0 = average)'})\n",
+        "plt.xlabel('Property Type')\n",
+        "plt.ylabel('Cluster')\n",
+        "plt.tight_layout()\n",
+        "plt.show()"
+      ],
+      "id": "c437981f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The distinctive patterns observed for Maisonette and Park Home properties should be interpreted with caution, as their counts are very low relative to other property types. This is particularly relevant for Maisonettes, which typically represent internal subdivisions within buildings that might otherwise be classified as Houses. In contrast, Flat and House properties showed no prevalent distribution toward any particular cluster, while Bungalow properties followed a distribution pattern similar to that of Detached properties in the previous analysis."
+      ],
+      "id": "61e44e1f"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Count and percentage table for PROPERTY_TYPE\n",
+        "property_type_counts = output_table['PROPERTY_TYPE'].value_counts(dropna=False)\n",
+        "property_type_percent = output_table['PROPERTY_TYPE'].value_counts(normalize=True, dropna=False) * 100\n",
+        "\n",
+        "property_type_summary = pd.DataFrame({\n",
+        "  'Count': property_type_counts,\n",
+        "  'Percentage': property_type_percent.round(2)\n",
+        "})\n",
+        "\n",
+        "display(property_type_summary)"
+      ],
+      "id": "d2893e3d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 11: Plot Property Age\n",
+        "We can also explore the building age from these data. Cluster C trends towards properties that are older than the 1930s. Previously this Cluster was also highlighted as having a higher propensity for terraced properties, and represents many of those terraced areas of Liverpool that were built during the Victorian and Edwardian era. Cluster E which also has a higher propensity for Terraced property have younger building ages from the 1950s-70s. Cluster A and B also have reasonably distinctive patterns, with A over indexing in the 1950-1966 group, and B from the 1950s to early 2000s."
+      ],
+      "id": "099892d7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculate overall proportion for each built age\n",
+        "overall_props = output_table['CONSTRUCTION_AGE_BAND'].value_counts(normalize=True)\n",
+        "\n",
+        "# Calculate cluster-specific proportions\n",
+        "cluster_props = output_table.groupby('cluster')['CONSTRUCTION_AGE_BAND'].value_counts(normalize=True).unstack(fill_value=0)\n",
+        "\n",
+        "# Calculate propensity index (cluster proportion / overall proportion)\n",
+        "propensity_index = cluster_props.div(overall_props, axis=1)\n",
+        "\n",
+        "# Plot heatmap of propensity index\n",
+        "plt.figure(figsize=(8, 5))\n",
+        "sns.heatmap(propensity_index, annot=True, fmt='.2f', cmap='RdBu_r', center=1, \n",
+        "            cbar_kws={'label': 'Propensity Index (1.0 = average)'})\n",
+        "plt.xlabel('Built Form')\n",
+        "plt.ylabel('Cluster')\n",
+        "plt.tight_layout()\n",
+        "plt.show()"
+      ],
+      "id": "8cc42702",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The building age variable are differentiated reasonably well by the Clusters which is likely because of the different roof construction materials prevail during different time periods. As such, it is logical that different time periods should have reasonably distinctive spectral response.\n",
+        "\n",
+        "### Step 12: Plot TOID Containing a Commercial UPRN\n",
+        "We also have a column that identifies if a commercial UPRN (defined as having a commercial EPC) was found within the TOID. This plot illustrates that there is the highest concentration of TOID with non domestic UPRN in Cluster C. However, there are also higher concentrations for these non-domestic UPRN to be found within Cluster D and E. "
+      ],
+      "id": "416e45d6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Calculate overall proportion\n",
+        "overall_props = output_table['NON_DOMESTIC'].value_counts(normalize=True)\n",
+        "\n",
+        "# Calculate cluster-specific proportions\n",
+        "cluster_props = output_table.groupby('cluster')['NON_DOMESTIC'].value_counts(normalize=True).unstack(fill_value=0)\n",
+        "\n",
+        "# Calculate propensity index (cluster proportion / overall proportion)\n",
+        "propensity_index = cluster_props.div(overall_props, axis=1)\n",
+        "\n",
+        "# Plot heatmap of propensity index\n",
+        "plt.figure(figsize=(7, 5))\n",
+        "sns.heatmap(propensity_index, annot=True, fmt='.2f', cmap='RdBu_r', center=1, \n",
+        "            cbar_kws={'label': 'Propensity Index (1.0 = average)'})\n",
+        "plt.xlabel('Contains a Non Domestic UPRN')\n",
+        "plt.ylabel('Cluster')\n",
+        "plt.tight_layout()\n",
+        "plt.show()"
+      ],
+      "id": "1a7337e0",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## The Descriptive and Predictive Potential of Embeddings\n",
+        "In this final section we will take a slightly different look at the embeddings to examine how they can be used to make predictions. First we will append the building characteristics onto the embeddings."
+      ],
+      "id": "bbc90615"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Merge EPC-derived building characteristics onto buildings_with_embeddings using TOID\n",
+        "buildings_with_embeddings = buildings_with_embeddings.merge(\n",
+        "    TOID_EPC_characteristics, on=\"TOID\", how=\"left\"\n",
+        ")"
+      ],
+      "id": "c3bcdca6",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Step 13: Mapping Cosine Similarity\n",
+        "In the following analysis we can identify those TOID that were categorised as having a building age older than 1930, which involved identifying those TOID which had a `CONSTRUCTION_AGE_BAND` falling into either '1900 or earlier', or '1900-1929'. The average embedding vector was calculated from all buildings constructed before 1930, creating a 64-dimensional \"profile\" representing the typical satellite characteristics of pre-1930 buildings. Cosine similarity[^8] was then used to compare each building's embedding vector against this average profile, producing a similarity score between 0 and 1 for every building in the dataset.\n",
+        "\n",
+        "[^8]: [Cosine similarity](https://en.wikipedia.org/wiki/Cosine_similarity) in this context measures how similar two building locations are by looking at the angle between their 64-dimensional embedding vectors (lists of numbers). A score of 1 means that the pixels have identical land characteristics; and a score of 0 that they are completely unrelated."
+      ],
+      "id": "13c402c5"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from shapely.geometry import Point\n",
+        "\n",
+        "# Get embedding columns\n",
+        "embedding_cols = [f'A{str(i).zfill(2)}' for i in range(64)]  # A00 to A63\n",
+        "\n",
+        "# Filter for buildings before 1930 (both \"1900 or earlier\" and \"1900-1929\")\n",
+        "pre_1930_buildings = buildings_with_embeddings[\n",
+        "    buildings_with_embeddings['CONSTRUCTION_AGE_BAND'].isin(['1900 or earlier', '1900-1929'])\n",
+        "]\n",
+        "\n",
+        "# Calculate average embedding for pre-1930 buildings\n",
+        "avg_embedding_pre_1930 = pre_1930_buildings[embedding_cols].mean().values\n",
+        "\n",
+        "# Calculate cosine similarity for all buildings to the average\n",
+        "# Get all embeddings as numpy array\n",
+        "all_embeddings = buildings_with_embeddings[embedding_cols].values\n",
+        "\n",
+        "# Normalise the average embedding\n",
+        "avg_norm = avg_embedding_pre_1930 / np.linalg.norm(avg_embedding_pre_1930)\n",
+        "\n",
+        "# Calculate cosine similarity for each building\n",
+        "similarities = []\n",
+        "for embedding in all_embeddings:\n",
+        "    # Normalise each embedding\n",
+        "    embedding_norm = embedding / np.linalg.norm(embedding)\n",
+        "    # Calculate cosine similarity\n",
+        "    similarity = np.dot(embedding_norm, avg_norm)\n",
+        "    similarities.append(similarity)\n",
+        "\n",
+        "# Add similarity scores to dataframe\n",
+        "buildings_with_embeddings['similarity_to_pre_1930'] = similarities\n",
+        "\n",
+        "# Results sorted by similarity\n",
+        "df_sorted = buildings_with_embeddings[['TOID', 'lon','lat','CONSTRUCTION_AGE_BAND', 'similarity_to_pre_1930']].sort_values(\n",
+        "    'similarity_to_pre_1930', ascending=False\n",
+        ")"
+      ],
+      "id": "fa364a95",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "You might want to export these results to a gpkg to view within a GIS."
+      ],
+      "id": "8a5736ec"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "# Export df_sorted as a GeoPackage using lon/lat\n",
+        "gdf_sorted = gpd.GeoDataFrame(\n",
+        "    df_sorted,\n",
+        "    geometry=gpd.points_from_xy(df_sorted['lon'], df_sorted['lat']),\n",
+        "    crs=\"EPSG:4326\"\n",
+        ")\n",
+        "gdf_sorted.to_file('./data/buildings_similarity_pre_1930.gpkg', layer='similarity_pre_1930', driver='GPKG')"
+      ],
+      "id": "b18b016f",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Alternatively, you can explore the results on the following interactive map."
+      ],
+      "id": "5aea1418"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| echo: false\n",
+        "#| output: false\n",
+        "# Prepare DataFrame for KeplerGl\n",
+        "df_map = df_sorted[['TOID', 'lon', 'lat', 'CONSTRUCTION_AGE_BAND', 'similarity_to_pre_1930']].copy()\n",
+        "df_map['similarity_to_pre_1930'] = df_map['similarity_to_pre_1930'].round(3)  # Round for popup\n",
+        "\n",
+        "# KeplerGl configuration for color by similarity\n",
+        "kepler_config = {\n",
+        "    \"version\": \"v1\",\n",
+        "    \"config\": {\n",
+        "        \"visState\": {\n",
+        "            \"filters\": [],\n",
+        "            \"layers\": [\n",
+        "                {\n",
+        "                    \"id\": \"similarity_layer\",\n",
+        "                    \"type\": \"point\",\n",
+        "                    \"config\": {\n",
+        "                        \"dataId\": \"buildings\",\n",
+        "                        \"label\": \"Similarity to Pre-1930\",\n",
+        "                        \"color\": [255, 153, 51],\n",
+        "                        \"columns\": {\"lat\": \"lat\", \"lng\": \"lon\"},\n",
+        "                        \"isVisible\": True,\n",
+        "                        \"visConfig\": {\n",
+        "                            \"radius\": 4,\n",
+        "                            \"opacity\": 0.8,\n",
+        "                            \"colorRange\": {\n",
+        "                                \"name\": \"YlOrRd\",\n",
+        "                                \"type\": \"sequential\",\n",
+        "                                \"category\": \"Uber\",\n",
+        "                                \"colors\": [\n",
+        "                                    \"#ffffb2\", \"#fed976\", \"#feb24c\", \"#fd8d3c\",\n",
+        "                                    \"#fc4e2a\", \"#e31a1c\", \"#b10026\"\n",
+        "                                ]\n",
+        "                            },\n",
+        "                            \"filled\": True\n",
+        "                        },\n",
+        "                        \"textLabel\": []\n",
+        "                    },\n",
+        "                    \"visualChannels\": {\n",
+        "                        \"colorField\": {\"name\": \"similarity_to_pre_1930\", \"type\": \"real\"},\n",
+        "                        \"colorScale\": \"quantile\"\n",
+        "                    }\n",
+        "                }\n",
+        "            ],\n",
+        "            \"interactionConfig\": {\n",
+        "                \"tooltip\": {\n",
+        "                    \"fieldsToShow\": {\n",
+        "                        \"buildings\": [\n",
+        "                            {\"name\": \"TOID\"},\n",
+        "                            {\"name\": \"CONSTRUCTION_AGE_BAND\"},\n",
+        "                            {\"name\": \"similarity_to_pre_1930\"}\n",
+        "                        ]\n",
+        "                    },\n",
+        "                    \"enabled\": True\n",
+        "                }\n",
+        "            }\n",
+        "        },\n",
+        "        \"mapState\": {\n",
+        "            \"latitude\": df_map['lat'].mean(),\n",
+        "            \"longitude\": df_map['lon'].mean(),\n",
+        "            \"zoom\": 12\n",
+        "        }\n",
+        "    }\n",
+        "}\n",
+        "\n",
+        "# Create and display KeplerGl map\n",
+        "similar_map = KeplerGl(data={\"buildings\": df_map}, config=kepler_config, height=600)\n",
+        "#similar_map\n",
+        "\n",
+        "# map_with_basemap\n",
+        "similar_map.save_to_html(file_name=\"similar_map.html\")"
+      ],
+      "id": "63940e25",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "<iframe src=\"similar_map.html\" width=\"100%\" height=\"300px\" style=\"border:none;\"></iframe>\n",
+        "\n",
+        "The intensity of red indicates how closely each building's embeddings match the average profile of buildings constructed before 1930. Darker red signifies higher similarity. While the map reveals some meaningful differentiation, inconsistencies emerge, even at street level. Although such visualisations offer valuable insights into the spatial patterns of such scores, they provide limited evidence of the embeddings' actual predictive capabilities.\n",
+        "\n",
+        "### Step 14: Building a Predictive Model Using the Embeddings\n",
+        "The following code fits a basic Random Forest [^9] model to predict the construction age band of buildings based on their embeddings.\n",
+        "\n",
+        "[^9]: A [random forest](https://en.wikipedia.org/wiki/Random_forest) is a popular machine learning model that makes predictions by combining the results of many decision trees. A decision tree is like a flowchart of yes/no questions that splits data into groups to make a prediction. A forest means we grow lots of these trees, each a little different (because they see random parts of the data and random subsets of the features). Each tree gives an answer, and the forest takes a majority vote (for classification) or an average (for regression).\n",
+        "\n",
+        "The first stage was to prepare the data. Of the 642,717 buildings, 389,445 had an age band so 253,272 rows were removed. The remaining data were split into training and test sets in a 80/20 ratio."
+      ],
+      "id": "215d7e6c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Remove rows with missing CONSTRUCTION_AGE_BAND\n",
+        "buildings_clean = buildings_with_embeddings[buildings_with_embeddings['CONSTRUCTION_AGE_BAND'].notna()].copy()\n",
+        "\n",
+        "# Prepare data\n",
+        "X = buildings_clean[embedding_cols].values\n",
+        "y = buildings_clean['CONSTRUCTION_AGE_BAND']\n",
+        "\n",
+        "# Split data\n",
+        "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)"
+      ],
+      "id": "ab3ae9da",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The next step was to run the random forest classifier model. The `n_estimators` refers to the number of trees, where more trees usually means more stable predictions, but also more computation. 100 is quite a common default. The `random_state` ensures reproducibility and `class_weight` as balanced is to account for the different class sizes in the data [^10].\n",
+        "\n",
+        "[^10]: Some age bands have much more data than others. For example, 1900–1929 has ~89k rows, but 1996–2002 only ~15k. Random Forest doesn’t automatically balance this, so it tends to be biased toward the larger classes which can effect recall success."
+      ],
+      "id": "b99c8571"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| output: false\n",
+        "# Train the model\n",
+        "rf = RandomForestClassifier(n_estimators=100, random_state=42,class_weight=\"balanced\")\n",
+        "rf.fit(X_train, y_train) # X_train (embeddings) and y_train (construction age band labels)"
+      ],
+      "id": "e0c9d4a7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We can then explore the results in the following table, comprising these columns:\n",
+        "\n",
+        "* **Precision:** How often is the TOID class right (1 = 100% etc).\n",
+        "* **Recall:** How many TOID of the correct class did the model find (1 = 100% etc).\n",
+        "* **F1-score:** The balance between precision and recall (0 = worst; 1 = perfect).\n",
+        "* **Support:** The count of TOID in the test data.\n",
+        "\n",
+        "The following aggregate statistics are also provided:\n",
+        "\n",
+        "* **Accuracy:** What percentage of all predictions were correct?\n",
+        "* **Macro Average:** This treats all classes as equally important, and is useful when rarer classes matter as much as common ones.\n",
+        "* **Weighted Average:** Accounts for how many examples of each class there are in the data, so classes with more examples count more in the average. This gives an idea of the overall system performance in production reflects what users will actually experience."
+      ],
+      "id": "bc84a48c"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Predict and evaluate\n",
+        "y_pred = rf.predict(X_test)\n",
+        "\n",
+        "# Get report as dict\n",
+        "report_dict = classification_report(y_test, y_pred, output_dict=True)\n",
+        "report_df = pd.DataFrame(report_dict).transpose()\n",
+        "\n",
+        "# Round only precision, recall, f1-score\n",
+        "for col in [\"precision\", \"recall\", \"f1-score\"]:\n",
+        "    if col in report_df.columns:\n",
+        "        report_df[col] = report_df[col].round(3)\n",
+        "\n",
+        "# Ensure support stays as int\n",
+        "if \"support\" in report_df.columns:\n",
+        "    report_df[\"support\"] = report_df[\"support\"].astype(int)\n",
+        "\n",
+        "display(report_df)"
+      ],
+      "id": "44adf7d4",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The Random Forest model achieves 49% accuracy in predicting building age periods, which is reasonable considering it has to choose between 9 different time periods. The model performs best on buildings from 1900-1929 (correctly identifying 70% of them) and struggles most with the oldest buildings from before 1900 (only finding 15% of them). There's a clear pattern where the model does better on time periods with more training examples - the three largest categories (1900-1929, 1930-1949, and 1950-1966) all have decent performance, while smaller categories like 1976-1982 and 1996-2002 are often missed. Interestingly, modern buildings from 2003 onwards are predicted very accurately when the model does identify them (80% precision), but it only finds about half of them. \n",
+        "\n",
+        "The model tends to confuse adjacent time periods, which is most obvious when we plot a confusion matrix that shows how well the random Forest model identifies each building age period. This makes sense since construction materials evolve gradually rather than changing abruptly at decade boundaries. Each row shows what happened to all buildings labelled as being from that actual time period. The numbers show the percentage (recall) - darker red means more buildings ended up in that category. Perfect performance would show dark red only on the diagonal."
+      ],
+      "id": "7755a3d6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "message": false
+      },
+      "source": [
+        "#| warning: false\n",
+        "# Create confusion matrix\n",
+        "cm = confusion_matrix(y_test, y_pred)\n",
+        "\n",
+        "# Create labels list\n",
+        "labels = ['1900 or earlier', '1900-1929', '1930-1949', '1950-1966', \n",
+        "          '1967-1975', '1976-1982', '1983-1995', '1996-2002', '2003 onwards']\n",
+        "\n",
+        "# Normalise by row (true labels) to show recall percentages\n",
+        "cm_normalised = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]\n",
+        "\n",
+        "plt.figure(figsize=(8, 5))\n",
+        "sns.heatmap(cm_normalised, annot=True, fmt='.2f', cmap='YlOrRd',\n",
+        "            xticklabels=labels, yticklabels=labels,\n",
+        "            vmin=0, vmax=1)\n",
+        "plt.xlabel('Predicted Age Band', fontsize=12)\n",
+        "plt.ylabel('True Age Band', fontsize=12)\n",
+        "plt.xticks(rotation=45, ha='right')\n",
+        "plt.yticks(rotation=0)\n",
+        "\n",
+        "# Add colourbar label\n",
+        "cbar = plt.gca().collections[0].colorbar\n",
+        "cbar.set_label('Recall Rate', rotation=270, labelpad=20)\n",
+        "\n",
+        "plt.tight_layout()\n",
+        "plt.show()"
+      ],
+      "id": "0bbb4423",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The model performs best on buildings from 1900-1929 (70% correctly identified), although it also frequently misclassifies pre-1900 buildings as being from this period - showing it cannot distinguish the oldest buildings from early 20th century ones. There is a clear pattern of \"adjacent period confusion\" where the model mixes up neighbouring time periods, particularly visible in the orange bands along the diagonal. For example, 1950-1966 buildings are often confused with both 1930-1949 (24%) and 1967-1975 periods. The four periods from 1967-2002 show especially high confusion with each other and with 1950-1966, suggesting that mid-to-late 20th century features are too similar for the embeddings to distinguish effectively. Modern buildings (2003 onwards) are however moderately well-identified at 48%, but are sometimes confused with earlier periods.\n",
+        "\n",
+        "Another useful output from the model are feature importance scores which tell you how important each of the embeddings are to making the predictions."
+      ],
+      "id": "be67b676"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Create feature importance dataframe\n",
+        "feature_importance = pd.DataFrame({\n",
+        "   'feature': [f'embedding_{i}' for i in range(len(embedding_cols))],\n",
+        "   'importance': rf.feature_importances_\n",
+        "}).sort_values('importance', ascending=False)\n",
+        "\n",
+        "# Display as a formatted dataframe with 6 decimal places\n",
+        "display(feature_importance.head(20).round(6).style.hide(axis=\"index\"))"
+      ],
+      "id": "80dc33d7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The top 20 most important features each contribute only around 1.6-2.1% to the model's decisions. Such a uniform importance distribution is typical of neural network embeddings, which encode complex information across many dimensions.\n",
+        "\n",
+        "## Conclusion\n",
+        "This tutorial has demonstrated the practical application of Google's AlphaEarth Foundations embeddings for building-level analysis, showing both the potential and limitations of these new data. \n",
+        "\n",
+        "The cluster analysis presented five distinct building types that align meaningfully with real-world urban morphology patterns. Cluster E emerged as the most distinctive group, representing larger specialised buildings such as industrial and commercial facilities. Cluster D captured high-density residential areas, predominantly terraced housing, while Clusters B and C represented different scales of residential development, with B trending toward detached and semi-detached properties. \n",
+        "\n",
+        "The analysis of building ages showed some clear associations with different construction periods. Cluster C was strongly associated with Victorian and Edwardian terraces (pre-1930), while Cluster E represented post-war development from the 1950s-70s.\n",
+        "\n",
+        "The Random Forest model's 49% accuracy in predicting building age from embeddings demonstrated moderate predictive power when distinguishing between the nine time periods. While this represents a meaningful improvement over random chance (11%), the results highlight important limitations. The model performs best on the most common construction periods (1900-1929, 1930-1949, and 1950-1966) but struggles with less common periods and shows systematic confusion between adjacent time periods. This pattern reflects both the gradual evolution of construction materials and techniques, and the challenges inherent in using 10-meter resolution imagery to capture subtle architectural differences."
+      ],
+      "id": "f13e5cae"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/home/ogoodwin/projects/GeoDem_CartoWorkshop2025/.venv/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

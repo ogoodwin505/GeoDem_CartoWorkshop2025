@@ -1,0 +1,42 @@
+/.quarto/
+# Quarto build output
+_site/
+*.html
+*.pdf
+*.docx
+*.odt
+*.epub
+*.tex
+*.log
+*.aux
+*.out
+*.toc
+
+# Quarto cache (knitr, jupyter, etc.)
+*_cache/
+*.knit.md
+*.utf8.md
+.DS_Store
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# R-specific
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# Python-specific
+__pycache__/
+*.py[cod]
+*.ipynb
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

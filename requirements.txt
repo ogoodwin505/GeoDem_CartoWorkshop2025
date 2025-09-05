@@ -1,0 +1,6 @@
+pandas
+clustergram
+scikit-learn
+matplotlib
+jupyter
+seaborn

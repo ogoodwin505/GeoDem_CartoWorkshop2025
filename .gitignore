@@ -18,6 +18,8 @@ _site/
 *.utf8.md
 .DS_Store
 
+
+input_data/
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 

@@ -21,7 +21,15 @@ Explore the following tutorials directly from this page:
 
 - [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python (Part 1)](tutorials/1_geodemographic_example_withcorr.ipynb)
 
-- [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python (Part 2)](tutorials/2_test.ipynb)
+- [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python (Part 2)](tutorials/draftworkshop.ipynb)
 
 
 
+# plotly test  
+```{python}
+import plotly.express as px
+
+
+fig = px.scatter(x=[1,2,3], y=[3,1,6])
+fig.show()
+```

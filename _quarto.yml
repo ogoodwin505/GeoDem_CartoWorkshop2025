@@ -2,22 +2,36 @@ project:
   type: website
 
 website:
-  title: "GeoDem_CartoWorkshop2025"
+  title: "Geographic Data Service Tutorials"
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      # - href: tutorials/1_geodemographic_example_withcorr.ipynb
+      #   text: Part 1
+      # - href: tutorials/draftworkshop.ipynb
+      #   text: Part 2
 
+execute:
+  enabled: true
+  freeze: false
+  echo: true
+  warning: true
+  error: true
+  message: true
+  eval: true
+  output: true
+  include: true
+  render: true
+  notebooks: tutorials/*.ipynb
 format:
   html:
-    theme:
-      - cosmo
-      - brand
+    theme: cosmo
     css: style.css
     toc: true
-  
-  
-resources:
-  - maps/*
-
+    toc-location: left
+    toc-float: true
+    highlight-style: github
+    reference-location: margin
+    citation-location: margin
+    margin-references: true

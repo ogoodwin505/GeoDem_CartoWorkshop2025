@@ -1,4 +1,7 @@
-# Setup 
+# Creating Cutting-Edge Geodemographic Classifications from Scratch in Python
+
+
+## Setup 
 
 
 There are a number of python packages that need to be installed to run this notebook. It is recommended to use a virtual environment to manage these dependencies.
@@ -14,7 +17,7 @@ pip install --upgrade pip
 pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl
 ```
 
-# Workshop Content
+## Workshop Content
 
 This notebook contains the workflow for produceding a geodemographic classification in python using k-means clustering. It follows a process similar to that described in the 2021 OAC Paper [@2021_oac].
 

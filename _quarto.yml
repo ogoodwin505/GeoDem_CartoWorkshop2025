@@ -23,7 +23,7 @@ execute:
   output: true
   include: true
   render: true
-  notebooks: tutorials/*.ipynb
+  notebooks: ./*.ipynb
 format:
   html:
     theme: cosmo

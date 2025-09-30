@@ -17,29 +17,32 @@ pip install --upgrade pip
 pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl
 ```
 
-## Workshop Content
+# Workshop Content
 
-This notebook contains the workflow for produceding a geodemographic classification in python using k-means clustering. It follows a process similar to that described in the 2021 OAC Paper [@2021_oac].
-
+This notebook contains the full workflow for producing a geodemographic classification from scratch in python using k-means clustering. 
 
 * **Data Access and Processing:**
-    * Access UK census data and process using Pandas
+    * Access UK census data and process using Pandas.
+    * Select a specific region of interest (e.g., Liverpool City Region, Greater Manchester, Greater London).
 
 * **Census Data Analysis and Variable selection:**
-    * Perform correlation analysis to identify redundant variables
-    * Use PCA (Principal Component Analysis) to reduce dimensionality and identify key components
-    * Select variables based on explained variance and interpretability
+    * Select relevant census variables for clustering.
+    * Standardise variables.
+    * Perform correlation & variance analysis to identify potentially redundant variables.
+    * Alternative variable selection methods (e.g., PCA, Autoencoders).
 
 * **Clustering:**
-    * Apply K-Means clustering to classify areas based on selected variables
-    * Determine optimal number of clusters using Clustergrams
-    * Perform hierarchical clustering to group clusters into supergroups
-    * Conduct subclustering within supergroups to identify finer patterns
-
+    * Determine optimal number of clusters using Clustergrams.
+    * Apply K-Means clustering to classify areas based on selected variables.
+    * Perform top-down hierarchical clustering to divide clusters into subgroups.
+    
 * **Analytical Techniques:**
-    * Use UMAP (Uniform Manifold Approximation and Projection) to visualise high-dimensional embeddings in 2D
+    * Use UMAP (Uniform Manifold Approximation and Projection) to visualise high-dimensional embeddings in 2D.
 
 * **Visualisation and Communication:**
-    * Visualise clusters and subclusters using Kepler.gl for interactive mapping
-    * Export results to various formats (GeoPackage, Parquet) for use in GIS software
-    * Generate publication-ready plots and statistical summaries
+    * Visualise clusters and subclusters using Kepler.gl for interactive mapping.
+    * Explore cluster characteristics using summary statistics and index scores.
+    * Export results to various formats (GeoPackage, Parquet) for use in GIS software.
+    
+* **Cluster Naming with LLMs:**
+    * Use Large Language Models (LLMs) to generate descriptive names and summaries for clusters based on their characteristics.

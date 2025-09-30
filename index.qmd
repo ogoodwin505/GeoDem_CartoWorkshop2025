@@ -19,4 +19,4 @@ bibliography: bibliography.bib
 
 Explore the following tutorials directly from this page:
 
-- [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python](tutorials/draftworkshop.ipynb)
+- [Creating Cutting-Edge Geodemographic Classifications from Scratch in Python](tutorials/creatinggeodem.ipynb)

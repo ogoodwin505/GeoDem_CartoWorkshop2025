@@ -35,3 +35,4 @@ format:
     reference-location: margin
     citation-location: margin
     margin-references: true
+    embed-resources: false   # important: prevents giant self-contained HTML

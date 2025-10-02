@@ -1,7 +1,7 @@
 # Creating Cutting-Edge Geodemographic Classifications from Scratch in Python
 
 
-## Setup 
+# Setup 
 
 
 There are a number of python packages that need to be installed to run this notebook. It is recommended to use a virtual environment to manage these dependencies.
@@ -16,6 +16,11 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl
 ```
+
+## Data
+
+The data used in this workshop is available from the Geographic Data Service [dataset](https://data.geods.ac.uk/dataset/creating-an-open-geodemographic-classification-using-k-means-clustering-in-python). You will need to register for a free account to download the data.
+Download the input_data.zip file, unzip it, and place the contents in a `input_data` folder in the same directory as this notebook.
 
 # Workshop Content
 

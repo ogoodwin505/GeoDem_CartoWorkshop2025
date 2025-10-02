@@ -22,6 +22,9 @@ pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn
 The data used in this workshop is available from the Geographic Data Service [dataset](https://data.geods.ac.uk/dataset/creating-an-open-geodemographic-classification-using-k-means-clustering-in-python). You will need to register for a free account to download the data.
 Download the input_data.zip file, unzip it, and place the contents in a `input_data` folder in the same directory as this notebook.
 
+If you are unable to run the notebook in your local environment you can use Google Colab. You will need to upload the data to the Colab environment.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
+
 # Workshop Content
 
 This notebook contains the full workflow for producing a geodemographic classification from scratch in python using k-means clustering. 

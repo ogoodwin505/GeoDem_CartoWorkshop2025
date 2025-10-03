@@ -20,7 +20,6 @@ _site/
 
 
 input_data/
-outputs/
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 

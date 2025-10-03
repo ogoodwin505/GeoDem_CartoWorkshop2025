@@ -1,6 +1,12 @@
 pandas
-clustergram
-scikit-learn
-matplotlib
-jupyter
-seaborn
+geopandas 
+pyarrow 
+scikit-learn 
+clustergram 
+umap-learn 
+seaborn 
+plotly 
+matplotlib 
+numpy 
+keplergl 
+openai

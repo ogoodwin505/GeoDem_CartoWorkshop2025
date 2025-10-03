@@ -10,12 +10,18 @@ There are a number of python packages that need to be installed to run this note
 python -m venv .venv
 # macOS / Linux
 source .venv/bin/activate
+# Windows (Command Prompt)
+.venv\Scripts\activate.bat
 # Windows (PowerShell)
 .venv/Scripts/Activate.ps1
 
 pip install --upgrade pip
-pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl
+pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl openai
 ```
+
+curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe -o .\miniconda.exe
+start /wait "" .\miniconda.exe /S
+del .\miniconda.exe
 
 ## Data
 

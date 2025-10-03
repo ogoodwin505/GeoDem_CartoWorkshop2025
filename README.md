@@ -22,18 +22,24 @@ pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn
 The data used in this workshop is available from the Geographic Data Service [dataset](https://data.geods.ac.uk/dataset/creating-an-open-geodemographic-classification-using-k-means-clustering-in-python). You will need to register for a free account to download the data.
 Download the input_data.zip file, unzip it, and place the contents in a `input_data` folder in the same directory as this notebook.
 
-If you are unable to run the notebook in your local environment you can use Google Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin505/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
+If you are unable to run the notebook in your local environment you can use Google Colab.
+
+ [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin505/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
+
 You will need to upload the data to the Colab environment.
 # Workshop Content
 
 This notebook contains the full workflow for producing a geodemographic classification from scratch in python using k-means clustering. 
 
+The `creatinggeodem.ipynb` notebook contains the full code and explanatory text for the workshop.  
+The key steps covered in the notebook are:
+
 * **Data Access and Processing:**
-    * Access UK census data and process using Pandas.
+    * Access UK Census data and process using Pandas.
     * Select a specific region of interest (e.g., Liverpool City Region, Greater Manchester, Greater London).
 
 * **Census Data Analysis and Variable selection:**
-    * Select relevant census variables for clustering.
+    * Select relevant Census variables for clustering.
     * Standardise variables.
     * Perform correlation & variance analysis to identify potentially redundant variables.
     * Alternative variable selection methods (e.g., PCA, Autoencoders).

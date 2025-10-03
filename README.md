@@ -40,7 +40,7 @@ You can then start Jupyter Notebook or Jupyter Lab to run the notebook.
 ```bash
 jupyter notebook creatinggeodem.ipynb
 ```
-# or
+or
 ```bash
 jupyter lab creatinggeodem.ipynb
 ```
@@ -56,7 +56,7 @@ You will need to upload the data to the Colab environment. To do this, you can u
 You will also need to install the required packages in the Colab environment. You can do this by uncommenting and running the following code cell in the notebook:
 
 ```python
-# !pip install -r requirements.txt
+# !pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl openai
 ```
 
 # Workshop Content

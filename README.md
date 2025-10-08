@@ -33,7 +33,7 @@ pip install -r requirements.txt
 ### Data
 
 The data used in this workshop is available from the Geographic Data Service [dataset](https://data.geods.ac.uk/dataset/creating-an-open-geodemographic-classification-using-k-means-clustering-in-python). You will need to register for a free account to download the data.
-Download the `input_data.zip` file and place it in the same directory as this notebook. The notebook will unzip the data to a folder called `input_data`.
+Download the `input_data_1.zip` file and place it in the same directory as this notebook. The notebook will unzip the data to a folder called `input_data`.
 
 You can then start Jupyter Notebook or Jupyter Lab to run the notebook.
 
@@ -51,7 +51,7 @@ You can also run the notebook in Google Colab. This is a free cloud-based enviro
 
  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin505/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
 
-You will need to upload the data to the Colab environment. To do this, you can use the file upload feature in Colab to upload the zipped folder input_data.zip to the same directory as the notebook. The data will be unzipped by code in the notebook.
+You will need to upload the data to the Colab environment. To do this, you can use the file upload feature in Colab to upload the zipped folder input_data_1.zip to the same directory as the notebook. The data will be unzipped by code in the notebook.
 
 You will also need to install the required packages in the Colab environment. You can do this by uncommenting and running the following code cell in the notebook:
 

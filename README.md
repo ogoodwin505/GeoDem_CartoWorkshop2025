@@ -1,8 +1,9 @@
 # Creating Cutting-Edge Geodemographic Classifications from Scratch in Python
 
-This repository contains the resources for the workshop "Creating Cutting-Edge Geodemographic Classifications from Scratch in Python" presented at the [Spatial Data Science Conference 2025](https://spatial-data-science-conference.com/2025/newyork).
+Resources for the workshop **“Creating Cutting-Edge Geodemographic Classifications from Scratch in Python”**, presented at the [Spatial Data Science Conference 2025](https://spatial-data-science-conference.com/2025/newyork).
 
-Web tutorial: [https://ogoodwin505.github.io/GeoDem_CartoWorkshop2025/](https://ogoodwin505.github.io/GeoDem_CartoWorkshop2025/)
+📘 **Web tutorial:** [ogoodwin505.github.io/GeoDem_CartoWorkshop2025](https://ogoodwin505.github.io/GeoDem_CartoWorkshop2025/)  
+💻 **Main Notebook:** [`creatinggeodem.ipynb`](creatinggeodem.ipynb)
 
 The notebook can be run in a local Python environment or in Google Colab.
 ## Running the Notebook Locally

@@ -15,7 +15,7 @@ The notebook can be run in Google Colab or locally on your machine. Instructions
 
 ## Running the Notebook in Google Colab
 
-You can also run the notebook in Google Colab. This is a free cloud-based environment that allows you to run Jupyter notebooks without needing to install anything on your local machine. You will need a Google account to use Colab.
+You can run the notebook in Google Colab. This is a free cloud-based environment that allows you to run Jupyter notebooks without needing to install anything on your local machine. You will need a Google account to use Colab.
 
  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin505/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
 

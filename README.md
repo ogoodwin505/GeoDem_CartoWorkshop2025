@@ -5,7 +5,30 @@ Resources for the workshop **“Creating Cutting-Edge Geodemographic Classificat
 📘 **Web tutorial:** [ogoodwin505.github.io/GeoDem_CartoWorkshop2025](https://ogoodwin505.github.io/GeoDem_CartoWorkshop2025/)  
 💻 **Main Notebook:** [`creatinggeodem.ipynb`](creatinggeodem.ipynb)
 
-The notebook can be run in a local Python environment or in Google Colab.
+
+### Data
+
+The data used in this workshop is available from the Geographic Data Service [dataset](https://data.geods.ac.uk/dataset/creating-an-open-geodemographic-classification-using-k-means-clustering-in-python). You will need to register for a free account to download the data.
+Download the `input_data_1.zip` file and place it in the same directory as this notebook. The notebook will unzip the data to a folder called `input_data`.
+
+The notebook can be run in Google Colab or locally on your machine. Instructions for both options are provided below.
+
+## Running the Notebook in Google Colab
+
+You can also run the notebook in Google Colab. This is a free cloud-based environment that allows you to run Jupyter notebooks without needing to install anything on your local machine. You will need a Google account to use Colab.
+
+ [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin505/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
+
+You will need to upload the data to the Colab environment. To do this, you can use the file upload feature in Colab to upload the zipped folder input_data_1.zip to the same directory as the notebook. The data will be unzipped by code in the notebook.
+
+You will also need to install the required packages in the Colab environment. You can do this by uncommenting and running the following code cell in the notebook:
+
+```python
+# !pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl openai
+from google.colab import output
+output.enable_custom_widget_manager()
+```
+
 ## Running the Notebook Locally
 To run this notebook locally you will need to have Python installed on your machine. It is recommended to use Python 3.12, there has been some issues with keplergl and Python 3.13.
 
@@ -20,21 +43,29 @@ There are a number of python packages that need to be installed to run this note
 
 ```bash
 python -m venv .venv
+```
+Activate the virtual environment:
+```bash
 # macOS / Linux
 source .venv/bin/activate
+```
+```bash
 # Windows (Command Prompt)
 .venv\Scripts\activate.bat
+```
+```bash
 # Windows (PowerShell)
  .\venv\Scripts\Activate.ps1
+```
 
+Install the required packages:
+
+```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### Data
 
-The data used in this workshop is available from the Geographic Data Service [dataset](https://data.geods.ac.uk/dataset/creating-an-open-geodemographic-classification-using-k-means-clustering-in-python). You will need to register for a free account to download the data.
-Download the `input_data_1.zip` file and place it in the same directory as this notebook. The notebook will unzip the data to a folder called `input_data`.
 
 You can then start Jupyter Notebook or Jupyter Lab to run the notebook.
 
@@ -46,19 +77,7 @@ or
 jupyter lab creatinggeodem.ipynb
 ```
 
-## Running the Notebook in Google Colab
 
-You can also run the notebook in Google Colab. This is a free cloud-based environment that allows you to run Jupyter notebooks without needing to install anything on your local machine. You will need a Google account to use Colab.
-
- [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ogoodwin505/GeoDem_CartoWorkshop2025/blob/main/creatinggeodem.ipynb)
-
-You will need to upload the data to the Colab environment. To do this, you can use the file upload feature in Colab to upload the zipped folder input_data_1.zip to the same directory as the notebook. The data will be unzipped by code in the notebook.
-
-You will also need to install the required packages in the Colab environment. You can do this by uncommenting and running the following code cell in the notebook:
-
-```python
-# !pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl openai
-```
 
 # Workshop Content
 

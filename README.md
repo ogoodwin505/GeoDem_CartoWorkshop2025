@@ -25,8 +25,8 @@ You will also need to install the required packages in the Colab environment. Yo
 
 ```python
 # !pip install pandas geopandas pyarrow scikit-learn clustergram umap-learn seaborn plotly matplotlib numpy keplergl openai
-from google.colab import output
-output.enable_custom_widget_manager()
+# from google.colab import output
+# output.enable_custom_widget_manager()
 ```
 
 ## Running the Notebook Locally

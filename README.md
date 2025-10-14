@@ -30,7 +30,7 @@ You will also need to install the required packages in the Colab environment. Yo
 ```
 
 ## Running the Notebook Locally
-To run this notebook locally you will need to have Python installed on your machine. It is recommended to use Python 3.12, there has been some issues with keplergl and Python 3.13.
+To run this notebook locally you will need to have Python installed on your machine.
 
 Clone and access the repository:
 
